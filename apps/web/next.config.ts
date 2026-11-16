@@ -9,7 +9,9 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
-  transpilePackages: ["@ao/shared"],
+  transpilePackages: ["@ao/shared", "@ao/core"],
+  // Native database driver: loaded from node_modules at runtime, not bundled.
+  serverExternalPackages: ["@libsql/client", "libsql"],
   allowedDevOrigins: devOrigins,
   turbopack: {
     rules: {

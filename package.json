@@ -5,14 +5,15 @@
   "type": "module",
   "packageManager": "pnpm@11.8.0",
   "scripts": {
-    "dev": "pnpm -r --parallel --filter @ao/api --filter @ao/web dev",
+    "dev": "pnpm --filter @ao/web dev",
     "build": "pnpm --filter @ao/web build",
-    "start": "pnpm -r --parallel --filter @ao/api --filter @ao/web start",
+    "start": "pnpm --filter @ao/web start",
     "test": "vitest run",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm --filter @ao/web lint",
-    "db:generate": "pnpm --filter @ao/api db:generate",
-    "simulate": "tsx scripts/simulate-events.ts"
+    "db:generate": "pnpm --filter @ao/core db:generate",
+    "simulate": "tsx scripts/simulate-events.ts",
+    "db:migrate": "pnpm --filter @ao/core db:migrate"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

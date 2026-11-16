@@ -23,14 +23,14 @@ Written for and tested on OpenCode 2.2.1. OpenCode 1 is not supported.
    ```bash
    export AO_INGEST_TOKEN="paste the hub's INGEST_TOKEN here"
    export AO_DEVICE="work-laptop"
-   export AO_HUB_URL="http://100.64.0.10:4317"   # default http://127.0.0.1:4317
+   export AO_HUB_URL="https://your-app.vercel.app"   # default http://127.0.0.1:4318
    ```
 
    or write `~/.config/agent-observatory/config.json` and make it readable by
    you only (`chmod 600`):
 
    ```json
-   { "hubUrl": "http://100.64.0.10:4317", "token": "…", "device": "work-laptop" }
+   { "hubUrl": "https://your-app.vercel.app", "token": "…", "device": "work-laptop" }
    ```
 
    Environment variables win. Prefer the file: OpenCode runs a background

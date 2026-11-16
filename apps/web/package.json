@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "node scripts/run.mjs dev",
     "build": "NEXT_TELEMETRY_DISABLED=1 next build",
+    "vercel-build": "pnpm --filter @ao/core db:migrate && NEXT_TELEMETRY_DISABLED=1 next build",
     "start": "node scripts/run.mjs start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ao/core": "workspace:*",
     "@ao/shared": "workspace:*",
     "@base-ui/react": "^1.9.0",
     "@react-three/drei": "^10.7.9",

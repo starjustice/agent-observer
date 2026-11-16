@@ -1,5 +1,6 @@
 /**
- * Sends fake Claude Code hook events to the local hub.
+ * Sends fake Claude Code hook events to the hub (local by default; set AO_HUB_URL
+ * to your Vercel address to try the deployed one).
  * Every request carries "X-Demo: 1", so the hub stores each record as DEMO
  * and shows it only on the /demo page, never mixed with real agents.
  *
@@ -15,9 +16,10 @@ const envFile = resolve(import.meta.dirname, '../.env');
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
 const host = process.env.BIND_ADDRESS || '127.0.0.1';
-const port = process.env.API_PORT || '4317';
+const port = process.env.WEB_PORT || '4318';
 const token = process.env.INGEST_TOKEN;
-const url = `http://${host.includes(':') ? `[${host}]` : host}:${port}/ingest/claude`;
+const hubUrl = (process.env.AO_HUB_URL || `http://${host.includes(':') ? `[${host}]` : host}:${port}`).replace(/\/+$/, '');
+const url = `${hubUrl}/ingest/claude`;
 const loop = process.argv.includes('--loop');
 const fast = process.argv.includes('--fast');
 

@@ -99,6 +99,13 @@ export function useLive(demo: boolean): LiveState {
           };
         });
       });
+      // The server ends each stream a little before its hosting time limit.
+      // Reopen at once from where we stopped, without showing "reconnecting".
+      source.addEventListener("reconnect", () => {
+        source?.close();
+        source = null;
+        openStream();
+      });
       source.onerror = () => {
         // Close and reopen ourselves so the replay point is always our own lastId.
         source?.close();

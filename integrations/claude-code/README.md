@@ -9,13 +9,21 @@ Checked against Claude Code 2.1.310 and <https://code.claude.com/docs/en/hooks>.
 
 ## What you need
 
-- The hub running (`pnpm dev` or `pnpm build && pnpm start` in the repo).
-- The hub's private address: its Tailscale address (100.x.y.z) or home Wi-Fi
-  address. Use `127.0.0.1` when Claude Code runs on the hub itself.
-- The `INGEST_TOKEN` from the hub's `.env`.
-- `curl` on the laptop (used only for the session-start event).
+- The hub's address. Deployed on Vercel it is `https://<your-app>.vercel.app`
+  (see [docs/deploy-vercel.md](../../docs/deploy-vercel.md)). Running on one
+  machine with `pnpm dev` it is `http://127.0.0.1:4318`, or that machine's
+  private address for other devices on your network.
+- The `INGEST_TOKEN` you gave the hub.
+- `curl` and `node` on the machine (curl for the session-start and stop events,
+  node for the installer).
 
-## Install on each laptop
+Nothing else runs on your laptops: Claude Code itself sends each event to the
+hub, from any network.
+
+## Install on each machine
+
+Do this on every machine where you use Claude Code (work laptop, home laptop,
+a remote box). Each one needs the same token and its own device name.
 
 1. Set two environment variables in your shell profile (`~/.zshrc` or similar),
    then open a new terminal:
@@ -25,39 +33,46 @@ Checked against Claude Code 2.1.310 and <https://code.claude.com/docs/en/hooks>.
    export AO_DEVICE="work-laptop"   # letters, digits, dot, dash, underscore
    ```
 
-2. Make a copy of the example with your hub address filled in. This writes a
-   new file and changes nothing else:
+2. Run the installer with your hub address. It checks that the hub is reachable
+   and accepts your token (without storing anything), then merges the hooks into
+   `~/.claude/settings.json`. Your existing hooks are kept, the file is backed
+   up first, and you see the diff:
 
    ```bash
-   sed 's/HUB_ADDRESS/100.64.0.10/g' hooks.example.json > hooks.mine.json
+   ./install.sh https://your-app.vercel.app
    ```
 
-3. Try it for one session first, without touching any settings file:
+   Add `--dry-run` to only show the diff. Add
+   `--settings <project>/.claude/settings.local.json` to install for one
+   project instead of every project on the machine.
 
-   ```bash
-   claude --settings ./hooks.mine.json
-   ```
+3. Start a new `claude` session and use a tool. The agent should appear on the
+   dashboard within a second, labelled with your `AO_DEVICE` name.
 
-   Use a tool, and the agent should appear on the dashboard within a second.
+To remove it again: `./install.sh --uninstall` (only the Observatory entries
+are removed). Running the installer again with a new address switches hubs.
 
-4. When you are happy, merge the `"hooks"` block from `hooks.mine.json` into
-   one of these yourself. Keep any hooks you already have: add these entries
-   next to them.
+### Doing it by hand
 
-   - `~/.claude/settings.json` for every project on this laptop
-   - `<project>/.claude/settings.local.json` for one project only
+To try it for one session without touching any settings file, or to merge it
+yourself:
 
-   Then run `/hooks` inside Claude Code to confirm they are listed.
+```bash
+sed 's|HUB_URL|https://your-app.vercel.app|g' hooks.example.json > hooks.mine.json
+claude --settings ./hooks.mine.json
+```
 
-To remove it, delete those entries again.
+Then merge the `"hooks"` block into `~/.claude/settings.json` or
+`<project>/.claude/settings.local.json`, next to any hooks you already have,
+and run `/hooks` inside Claude Code to confirm they are listed.
 
 ## Why the hub address is not an environment variable
 
 Claude Code only substitutes environment variables in HTTP hook **headers**
 (and only those listed in `allowedEnvVars`). Substitution in `url` is not
-documented, so the address is written into your copy of the file in step 2.
-The token and device name do come from the environment and are never written
-to disk by these steps.
+documented, so the installer writes the address into your settings. The token
+and device name do come from the environment and are never written to disk by
+these steps.
 
 ## Why SessionStart uses curl
 
@@ -79,22 +94,21 @@ The transcript itself is not sent.
 The model therefore shows as unknown until the first turn of a new session
 ends. It is the main agent's model: subagents show unknown.
 
-## If the hub is off
+## If the hub is unreachable
 
-- Hub program stopped, machine still on: the connection is refused at once.
-  Claude Code logs a non-blocking hook error and carries on. No delay.
-- Hub machine off or unreachable: each event waits up to the 2-second timeout,
-  then Claude Code carries on. Tools still run, but each one can feel up to a
-  few seconds slower until the hub is back. Remove the hooks or bring the hub
-  back if that bothers you.
+Each event waits up to the 2-second hook timeout, then Claude Code carries on.
+Tools still run, but each one can feel up to a few seconds slower until the hub
+is back (offline laptop, Vercel outage). A hub that is up but asleep adds a
+fraction of a second to the first event only. If the hub is up but its database
+is down, it still answers 204 immediately and the event is lost.
 
-Events sent while the hub is off are lost. That is by design.
+Events sent while the hub cannot be reached are lost. That is by design.
 
 ## What leaves the laptop
 
 Claude Code sends its full hook payload, which includes prompts, tool input and
-tool output, to the hub over your private network. The hub reads only an
-allow-list of fields and never writes the rest to disk or logs.
+tool output, to the hub. The hub reads only an allow-list of fields and never
+writes the rest to the database or logs.
 
 What the hub keeps depends on `CAPTURE_DETAIL` in its `.env`:
 
@@ -108,8 +122,10 @@ In both modes tool output, the AI's replies, file contents and transcript
 paths are never stored. Stored text is deleted with its event after
 `EVENT_RETENTION_DAYS`.
 
-Plain HTTP is not encrypted, so only use a network you trust: Tailscale
-encrypts the traffic; on home Wi-Fi anyone on the network could read it.
+On Vercel the traffic is HTTPS and the stored text lives in your Turso
+database, so set `CAPTURE_DETAIL=false` on the hub if you do not want prompts
+and commands in the cloud. Plain `http://` is not encrypted: use it only for
+`127.0.0.1`, or over Tailscale. The installer warns if you give it one.
 
 ## How a subagent is linked to its parent
 

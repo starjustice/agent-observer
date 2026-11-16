@@ -25,7 +25,7 @@ function readSettings() {
   } catch {
     // No file is normal when the environment variables are used.
   }
-  const hubUrl = process.env.AO_HUB_URL || file.hubUrl || "http://127.0.0.1:4317";
+  const hubUrl = process.env.AO_HUB_URL || file.hubUrl || "http://127.0.0.1:4318";
   const token = process.env.AO_INGEST_TOKEN || file.token || "";
   const device = process.env.AO_DEVICE || file.device || "";
   return token && device ? { url: `${String(hubUrl).replace(/\/+$/, "")}/ingest/opencode`, token, device } : null;
