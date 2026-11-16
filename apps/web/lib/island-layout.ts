@@ -15,14 +15,53 @@ export interface NodeSpot {
   parent: { x: number; z: number; agent: Agent } | null;
 }
 
+/** Where an agent runs to on its island. */
+export type StationKind = "library" | "workbench" | "terminal" | "web";
+
+export const STATION_KINDS: readonly StationKind[] = ["library", "workbench", "terminal", "web"];
+
+/** One station on the island. x and z are absolute, in the same space as a NodeSpot. */
+export interface Station {
+  kind: StationKind;
+  x: number;
+  z: number;
+}
+
+/** Where a running person heads for: a station, home (idle), or the delegation edge. */
+export type RunTarget = StationKind | "home" | "delegate";
+
+const LIBRARY_TOOLS = new Set(["read", "grep", "glob", "ls", "list", "notebookread", "view"]);
+const WORKBENCH_TOOLS = new Set(["edit", "write", "multiedit", "patch", "notebookedit", "todowrite", "apply_patch"]);
+const TERMINAL_TOOLS = new Set(["bash", "shell", "run", "terminal"]);
+const WEB_TOOLS = new Set(["webfetch", "websearch", "fetch"]);
+const DELEGATE_TOOLS = new Set(["task", "agent"]);
+
+/**
+ * The station an agent runs to for a tool. Tools match on their exact lower-case
+ * name; an idle agent heads home, and a working agent with no known tool stays
+ * at the workbench.
+ */
+export function stationForTool(tool: string | null, working: boolean): RunTarget {
+  const name = tool?.trim().toLowerCase();
+  if (name) {
+    if (LIBRARY_TOOLS.has(name)) return "library";
+    if (WORKBENCH_TOOLS.has(name)) return "workbench";
+    if (TERMINAL_TOOLS.has(name)) return "terminal";
+    if (WEB_TOOLS.has(name)) return "web";
+    if (DELEGATE_TOOLS.has(name)) return "delegate";
+  }
+  return working ? "workbench" : "home";
+}
+
 /** One session on an island: a lead and everything it started. */
 export interface Team {
   x: number;
   z: number;
-  /** Radius of the circle that holds the lead and its subagents. */
+  /** Radius of the circle that holds the lead, its subagents and its stations. */
   r: number;
   lead: NodeSpot;
   subs: NodeSpot[];
+  stations: Station[];
 }
 
 /** One project on one device, drawn as its own floating island. */
@@ -55,6 +94,8 @@ const ISLAND_GAP = 3;
 const ISLAND_PAD = 0.8;
 const TEAM_GAP = 0.9;
 const MIN_ISLAND = 2.4;
+/** Half the footprint of a station prop, so the island grows enough to hold one. */
+const STATION_PROP_RADIUS = 0.35;
 
 /** Kept apart from the status colours (violet, orange, red) on purpose. */
 export const PROJECT_COLORS = [
@@ -77,6 +118,11 @@ function hashOf(value: string): number {
   return h;
 }
 
+/** Smallest angle between two directions, in radians. */
+function angleGap(a: number, b: number): number {
+  return Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+}
+
 interface Local {
   agent: Agent;
   x: number;
@@ -84,8 +130,12 @@ interface Local {
   depth: number;
 }
 
-/** Places a lead at 0,0 with its subagents on rings around it. */
-function layoutTeam(lead: Agent, members: Agent[], byId: Map<string, Agent>): { nodes: Local[]; r: number } {
+/** Places a lead at 0,0 with its subagents on rings around it, and its stations outside them. */
+function layoutTeam(
+  lead: Agent,
+  members: Agent[],
+  byId: Map<string, Agent>,
+): { nodes: Local[]; stations: Station[]; r: number } {
   const depthOf = (agent: Agent): number => {
     let current = agent;
     for (let hops = 1; hops <= 9; hops += 1) {
@@ -106,11 +156,24 @@ function layoutTeam(lead: Agent, members: Agent[], byId: Map<string, Agent>): { 
 
   const direct = ordered.filter((m) => m.depth === 1);
   const ringR = 1.3 + 0.25 * direct.length;
+  const subAngles: number[] = [];
   direct.forEach((m, i) => {
     const angle = -Math.PI / 4 + (2 * Math.PI * i) / Math.max(1, direct.length);
+    subAngles.push(angle);
     const at = { x: Math.cos(angle) * ringR, z: Math.sin(angle) * ringR };
     pos.set(m.agent.id, at);
     nodes.push({ agent: m.agent, ...at, depth: 1 });
+  });
+
+  // Stations sit on a wider ring, on the diagonals. If one would face a direct
+  // subagent, turn the whole ring so the stations fall between them.
+  const stationR = ringR + 0.7;
+  const stationAngle = (i: number) => Math.PI / 4 + (i * Math.PI) / 2;
+  const clash = subAngles.some((sub) => STATION_KINDS.some((_, i) => angleGap(stationAngle(i), sub) < 0.35));
+  const twist = clash ? Math.PI / 8 : 0;
+  const stations: Station[] = STATION_KINDS.map((kind, i) => {
+    const angle = stationAngle(i) + twist;
+    return { kind, x: Math.cos(angle) * stationR, z: Math.sin(angle) * stationR };
   });
 
   // Deeper subagents fan out beyond the one that started them.
@@ -135,8 +198,10 @@ function layoutTeam(lead: Agent, members: Agent[], byId: Map<string, Agent>): { 
     }
   }
 
-  const reach = nodes.reduce((max, n) => Math.max(max, Math.hypot(n.x, n.z)), 0);
-  return { nodes, r: Math.max(1.1, reach + 0.65) };
+  const nodeReach = nodes.reduce((max, n) => Math.max(max, Math.hypot(n.x, n.z)), 0);
+  const stationReach = stations.reduce((max, s) => Math.max(max, Math.hypot(s.x, s.z) + STATION_PROP_RADIUS), 0);
+  const reach = Math.max(nodeReach, stationReach);
+  return { nodes, stations, r: Math.max(1.1, reach + 0.65) };
 }
 
 export function layoutIslands(agents: Agent[], hubNow: number | null): IslandLayout {
@@ -191,7 +256,7 @@ export function layoutIslands(agents: Agent[], hubNow: number | null): IslandLay
     device: string;
     color: string;
     radius: number;
-    teams: { x: number; z: number; r: number; nodes: Local[]; lead: Agent }[];
+    teams: { x: number; z: number; r: number; nodes: Local[]; stations: Station[]; lead: Agent }[];
   }
   const local: LocalIsland[] = keys.map((key) => {
     const group = groups.get(key)!;
@@ -295,6 +360,7 @@ export function layoutIslands(agents: Agent[], hubNow: number | null): IslandLay
         r: t.r,
         lead: spots.get(t.lead.id)!,
         subs: all.filter((s) => s.depth > 0),
+        stations: t.stations.map((s) => ({ kind: s.kind, x: centre.x + t.x + s.x, z: centre.z + t.z + s.z })),
       };
     });
     islands.push({

@@ -25,8 +25,16 @@ const LEGEND = [
 const SHAPES = [
   { label: "Tall tower = lead agent", shape: "h-3 w-1.5 rounded-sm" },
   { label: "Small pillar = subagent", shape: "h-2 w-1.5 rounded-sm" },
+  { label: "Person = agent, runs to its tool", shape: "size-2 rounded-full" },
   { label: "Beam = delegation", shape: "h-px w-3 border-t border-dashed" },
   { label: "Island = project", shape: "size-2.5 rotate-45 rounded-[2px]" },
+];
+
+const STATIONS = [
+  { label: "Library = reading", shape: "h-1.5 w-2.5 rounded-[1px]" },
+  { label: "Workbench = editing", shape: "h-1.5 w-2.5 rounded-[1px]" },
+  { label: "Terminal = commands", shape: "h-1.5 w-2.5 rounded-[1px]" },
+  { label: "Antenna = web", shape: "h-1.5 w-2.5 rounded-[1px]" },
 ];
 
 export function IslandView({
@@ -89,6 +97,14 @@ export function IslandView({
             {LEGEND.map((item) => (
               <li key={item.label} className="flex items-center gap-1.5">
                 <span aria-hidden className={`size-2 rounded-full ${item.dot}`} />
+                {item.label}
+              </li>
+            ))}
+          </ul>
+          <ul className="flex flex-wrap gap-x-3 gap-y-1">
+            {STATIONS.map((item) => (
+              <li key={item.label} className="flex items-center gap-1.5">
+                <span aria-hidden className={`inline-block bg-foreground/60 ${item.shape}`} />
                 {item.label}
               </li>
             ))}

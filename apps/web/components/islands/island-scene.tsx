@@ -15,7 +15,17 @@ import { Line, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { AgentStatus, StoredEvent } from "@ao/shared";
 import { isStale } from "@/lib/format";
-import { islandSummary, type Island, type IslandLayout, type NodeSpot } from "@/lib/island-layout";
+import {
+  islandSummary,
+  stationForTool,
+  type Island,
+  type IslandLayout,
+  type NodeSpot,
+  type StationKind,
+  type Team,
+} from "@/lib/island-layout";
+import { Runner, standOff } from "./runner";
+import { Stations } from "./stations";
 
 // Same accents as globals.css, as hex for WebGL.
 const VIOLET = "#a68cf5";
@@ -164,8 +174,7 @@ function AgentNode({
     const live = still || stale ? 0 : 1;
     const t = state.clock.elapsedTime + phase;
     let glow = look.glow * (stale ? 0.35 : 1);
-    if (agent.status === "working") glow += Math.sin(t * 9) * 0.25 * live;
-    else if (agent.status === "starting") glow += Math.sin(t * 4) * 0.4 * live;
+    if (agent.status === "starting") glow += Math.sin(t * 4) * 0.4 * live;
     else if (agent.status === "failed") glow *= live && Math.sin(t * 3) < 0 ? 0.35 : 1;
 
     if (body.current) {
@@ -262,6 +271,100 @@ function AgentNode({
   );
 }
 
+interface Point {
+  x: number;
+  z: number;
+}
+
+/** The team's stations and one running person per agent, in island-local coords. */
+function TeamRunners({
+  team,
+  island,
+  hubNow,
+  still,
+  pulses,
+  positions,
+  onSelect,
+}: {
+  team: Team;
+  island: Island;
+  hubNow: number | null;
+  still: boolean;
+  pulses: Pulses;
+  positions: Positions;
+  onSelect: (id: string) => void;
+}) {
+  const plan = useMemo(() => {
+    const local = (p: Point): Point => ({ x: p.x - island.x, z: p.z - island.z });
+    const centre = local(team);
+    const stations = Object.fromEntries(team.stations.map((s) => [s.kind, local(s)])) as Record<StationKind, Point>;
+    const spots = [team.lead, ...team.subs];
+    const runners = spots.map((spot) => {
+      const { agent } = spot;
+      const tower = local(spot);
+      const home = spot.kind === "lead" ? { x: tower.x, z: tower.z + 0.45 } : standOff(tower, centre, 0.45);
+      let delegateTo: Point | null = null;
+      if (agent.status === "working" && stationForTool(agent.currentTool, true) === "delegate") {
+        const children = team.subs
+          .filter((s) => s.parent?.agent.id === agent.id)
+          .sort((a, b) => b.agent.firstSeenAt - a.agent.firstSeenAt);
+        const child = children.find((s) => s.agent.status === "working") ?? children[0];
+        if (child) delegateTo = local(child);
+      }
+      return {
+        spot,
+        home,
+        delegateTo,
+        spawnFrom: spot.kind === "sub" && spot.parent ? local(spot.parent) : null,
+      };
+    });
+    return { centre, stations, runners };
+  }, [team, island.x, island.z]);
+
+  const staleOf = (spot: NodeSpot) => hubNow !== null && isStale(spot.agent, hubNow);
+  const activeKinds = new Set<StationKind>();
+  for (const { spot, delegateTo } of plan.runners) {
+    if (spot.agent.status !== "working" || staleOf(spot)) continue;
+    const where = stationForTool(spot.agent.currentTool, true);
+    if (where === "delegate") {
+      if (!delegateTo) activeKinds.add("workbench");
+    } else if (where !== "home") {
+      activeKinds.add(where);
+    }
+  }
+
+  return (
+    <>
+      <Stations
+        stations={team.stations}
+        originX={island.x}
+        originZ={island.z}
+        color={island.color}
+        activeKinds={activeKinds}
+      />
+      {plan.runners.map(({ spot, home, delegateTo, spawnFrom }) => (
+        <Runner
+          key={`runner-${spot.agent.id}`}
+          spot={spot}
+          home={home}
+          centre={plan.centre}
+          stations={plan.stations}
+          delegateTo={delegateTo}
+          spawnFrom={spawnFrom}
+          color={island.color}
+          statusColor={LOOKS[spot.agent.status].color}
+          stale={staleOf(spot)}
+          still={still}
+          pulses={pulses}
+          positions={positions}
+          islandOffset={island}
+          onSelect={onSelect}
+        />
+      ))}
+    </>
+  );
+}
+
 interface FlowLine {
   material: { dashOffset: number; opacity: number };
 }
@@ -303,13 +406,14 @@ function Beam({
 }
 
 type LabelEls = RefObject<Map<string, HTMLElement>>;
+type Positions = RefObject<Map<string, THREE.Vector3>>;
 const point = new THREE.Vector3();
 
 /**
  * Keeps the island banners and name tags, which are plain page elements drawn
  * over the canvas, on top of their islands and nodes as the camera moves.
  */
-function LabelProjector({ layout, els }: { layout: IslandLayout; els: LabelEls }) {
+function LabelProjector({ layout, els, positions }: { layout: IslandLayout; els: LabelEls; positions: Positions }) {
   useFrame(({ camera, size }) => {
     const place = (key: string, x: number, y: number, z: number, anchor: string, min: number) => {
       const el = els.current.get(key);
@@ -330,7 +434,10 @@ function LabelProjector({ layout, els }: { layout: IslandLayout; els: LabelEls }
       place(`island:${island.key}`, island.x, 0, island.z + island.radius + 0.3, "translate(-50%, 0)", 0.6);
     }
     for (const spot of layout.nodes) {
-      place(`node:${spot.agent.id}`, spot.x, SHAPE[spot.kind].tagY, spot.z, "translate(-50%, -100%)", 0.5);
+      const key = `node:${spot.agent.id}`;
+      const runner = positions.current.get(spot.agent.id);
+      if (runner) place(key, runner.x, runner.y + 0.35, runner.z, "translate(-50%, -100%)", 0.5);
+      else place(key, spot.x, SHAPE[spot.kind].tagY, spot.z, "translate(-50%, -100%)", 0.5);
     }
   });
   return null;
@@ -480,6 +587,7 @@ export default function IslandScene({
   const pulses = useRef(new Map<string, Pulse>());
   const lastEventId = useRef(0);
   const labelEls = useRef(new Map<string, HTMLElement>());
+  const runnerPositions = useRef(new Map<string, THREE.Vector3>());
   const [picked, setFocus] = useState<Focus | null>(null);
   const focus = picked && picked.resetKey === resetKey ? picked : null;
   const labelRef = (key: string) => (el: HTMLElement | null) => {
@@ -548,6 +656,15 @@ export default function IslandScene({
                     />
                   );
                 })}
+                <TeamRunners
+                  team={team}
+                  island={island}
+                  hubNow={hubNow}
+                  still={still}
+                  pulses={pulses}
+                  positions={runnerPositions}
+                  onSelect={onSelect}
+                />
                 {[team.lead, ...team.subs].map((spot) => (
                   <AgentNode
                     key={spot.agent.id}
@@ -574,7 +691,7 @@ export default function IslandScene({
           maxDistance={layout.radius * 4 + 12}
         />
         <CameraRig radius={layout.radius} resetKey={resetKey} focus={focus} still={still} />
-        <LabelProjector layout={layout} els={labelEls} />
+        <LabelProjector layout={layout} els={labelEls} positions={runnerPositions} />
         {still ? <RedrawOnChange signal={layout} /> : null}
       </Canvas>
 
