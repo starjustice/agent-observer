@@ -1,0 +1,23 @@
+{
+  "name": "agent-observatory",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter @ao/api --filter @ao/web dev",
+    "build": "pnpm --filter @ao/web build",
+    "start": "pnpm -r --parallel --filter @ao/api --filter @ao/web start",
+    "test": "vitest run",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm --filter @ao/web lint",
+    "db:generate": "pnpm --filter @ao/api db:generate",
+    "simulate": "tsx scripts/simulate-events.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

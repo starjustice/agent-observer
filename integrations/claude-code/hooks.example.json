@@ -1,0 +1,237 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "timeout": 3,
+            "command": "p=$(cat); t=$(printf '%s' \"$p\" | sed -n 's/.*\"transcript_path\":\"\\([^\"]*\\)\".*/\\1/p'); m=$([ -f \"$t\" ] && tail -c 200000 \"$t\" | grep -o '\"model\":\"[A-Za-z0-9._:-]*\"' | tail -1 | cut -d'\"' -f4); printf '%s' \"$p\" | curl -s -m 2 -o /dev/null -X POST -H 'Content-Type: application/json' -H \"Authorization: Bearer $AO_INGEST_TOKEN\" -H \"X-Device: $AO_DEVICE\" -H \"X-Model: $m\" --data-binary @- 'http://HUB_ADDRESS:4317/ingest/claude' || true"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://HUB_ADDRESS:4317/ingest/claude",
+            "timeout": 2,
+            "headers": {
+              "Authorization": "Bearer $AO_INGEST_TOKEN",
+              "X-Device": "$AO_DEVICE"
+            },
+            "allowedEnvVars": [
+              "AO_INGEST_TOKEN",
+              "AO_DEVICE"
+            ]
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://HUB_ADDRESS:4317/ingest/claude",
+            "timeout": 2,
+            "headers": {
+              "Authorization": "Bearer $AO_INGEST_TOKEN",
+              "X-Device": "$AO_DEVICE"
+            },
+            "allowedEnvVars": [
+              "AO_INGEST_TOKEN",
+              "AO_DEVICE"
+            ]
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://HUB_ADDRESS:4317/ingest/claude",
+            "timeout": 2,
+            "headers": {
+              "Authorization": "Bearer $AO_INGEST_TOKEN",
+              "X-Device": "$AO_DEVICE"
+            },
+            "allowedEnvVars": [
+              "AO_INGEST_TOKEN",
+              "AO_DEVICE"
+            ]
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://HUB_ADDRESS:4317/ingest/claude",
+            "timeout": 2,
+            "headers": {
+              "Authorization": "Bearer $AO_INGEST_TOKEN",
+              "X-Device": "$AO_DEVICE"
+            },
+            "allowedEnvVars": [
+              "AO_INGEST_TOKEN",
+              "AO_DEVICE"
+            ]
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://HUB_ADDRESS:4317/ingest/claude",
+            "timeout": 2,
+            "headers": {
+              "Authorization": "Bearer $AO_INGEST_TOKEN",
+              "X-Device": "$AO_DEVICE"
+            },
+            "allowedEnvVars": [
+              "AO_INGEST_TOKEN",
+              "AO_DEVICE"
+            ]
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://HUB_ADDRESS:4317/ingest/claude",
+            "timeout": 2,
+            "headers": {
+              "Authorization": "Bearer $AO_INGEST_TOKEN",
+              "X-Device": "$AO_DEVICE"
+            },
+            "allowedEnvVars": [
+              "AO_INGEST_TOKEN",
+              "AO_DEVICE"
+            ]
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://HUB_ADDRESS:4317/ingest/claude",
+            "timeout": 2,
+            "headers": {
+              "Authorization": "Bearer $AO_INGEST_TOKEN",
+              "X-Device": "$AO_DEVICE"
+            },
+            "allowedEnvVars": [
+              "AO_INGEST_TOKEN",
+              "AO_DEVICE"
+            ]
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://HUB_ADDRESS:4317/ingest/claude",
+            "timeout": 2,
+            "headers": {
+              "Authorization": "Bearer $AO_INGEST_TOKEN",
+              "X-Device": "$AO_DEVICE"
+            },
+            "allowedEnvVars": [
+              "AO_INGEST_TOKEN",
+              "AO_DEVICE"
+            ]
+          }
+        ]
+      }
+    ],
+    "TaskCreated": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://HUB_ADDRESS:4317/ingest/claude",
+            "timeout": 2,
+            "headers": {
+              "Authorization": "Bearer $AO_INGEST_TOKEN",
+              "X-Device": "$AO_DEVICE"
+            },
+            "allowedEnvVars": [
+              "AO_INGEST_TOKEN",
+              "AO_DEVICE"
+            ]
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://HUB_ADDRESS:4317/ingest/claude",
+            "timeout": 2,
+            "headers": {
+              "Authorization": "Bearer $AO_INGEST_TOKEN",
+              "X-Device": "$AO_DEVICE"
+            },
+            "allowedEnvVars": [
+              "AO_INGEST_TOKEN",
+              "AO_DEVICE"
+            ]
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "timeout": 3,
+            "command": "p=$(cat); t=$(printf '%s' \"$p\" | sed -n 's/.*\"transcript_path\":\"\\([^\"]*\\)\".*/\\1/p'); m=$([ -f \"$t\" ] && tail -c 200000 \"$t\" | grep -o '\"model\":\"[A-Za-z0-9._:-]*\"' | tail -1 | cut -d'\"' -f4); printf '%s' \"$p\" | curl -s -m 2 -o /dev/null -X POST -H 'Content-Type: application/json' -H \"Authorization: Bearer $AO_INGEST_TOKEN\" -H \"X-Device: $AO_DEVICE\" -H \"X-Model: $m\" --data-binary @- 'http://HUB_ADDRESS:4317/ingest/claude' || true"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "http://HUB_ADDRESS:4317/ingest/claude",
+            "timeout": 2,
+            "headers": {
+              "Authorization": "Bearer $AO_INGEST_TOKEN",
+              "X-Device": "$AO_DEVICE"
+            },
+            "allowedEnvVars": [
+              "AO_INGEST_TOKEN",
+              "AO_DEVICE"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
