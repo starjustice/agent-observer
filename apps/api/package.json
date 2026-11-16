@@ -11,15 +11,15 @@
   },
   "dependencies": {
     "@ao/shared": "workspace:*",
-    "better-sqlite3": "^12.0.0",
-    "drizzle-orm": "^0.44.0",
-    "express": "^5.1.0",
-    "tsx": "^4.19.0",
-    "zod": "^4.0.0"
+    "better-sqlite3": "^13.2.0",
+    "drizzle-orm": "^0.45.4",
+    "express": "^5.3.0",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/express": "^5.0.0",
-    "drizzle-kit": "^0.31.0"
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/express": "^5.0.6",
+    "drizzle-kit": "^0.31.11"
   }
 }
